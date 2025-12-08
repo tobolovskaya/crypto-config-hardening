@@ -1,0 +1,249 @@
+{
+  "_comment": "═══════════════════════════════════════════════════════════════════════════════",
+  "_description": "БЕЗПЕЧНА КРИПТОГРАФІЧНА КОНФІГУРАЦІЯ",
+  "_created": "Грудень 2025",
+  "_standards": "OWASP, NIST, RFC",
+  "_comment_end": "═══════════════════════════════════════════════════════════════════════════════",
+
+  "jwt": {
+    "_comment": "JWT (JSON Web Tokens) - Налаштування автентифікації",
+    
+    "algorithm": "RS256",
+    "_algorithm_reasoning": "RS256 (RSA + SHA-256): Асиметрична криптографія, публічний ключ можна безпечно розповсюджувати, підходить для мікросервісів, рекомендовано IETF RFC 7518",
+    
+    "key_size": 2048,
+    "_key_size_reasoning": "2048 біт - мінімум NIST до 2030 року, баланс безпеки та продуктивності, для критичних систем 3072-4096",
+    
+    "verify_signature": true,
+    "_verify_signature_reasoning": "Завжди true - гарантує автентичність та цілісність токену, основа безпеки JWT",
+    
+    "claims": {
+      "exp_required": true,
+      "_exp_required_reasoning": "Обмежує час життя токену, зменшує вікно атак, відповідає RFC 7519",
+      
+      "exp_max_time": 900,
+      "_exp_max_time_reasoning": "15 хвилин для access tokens - баланс між безпекою та зручністю, рекомендація OWASP",
+      
+      "iat_required": true,
+      "_iat_required_reasoning": "Час створення - для визначення віку токену та refresh логіки",
+      
+      "nbf_check": true,
+      "_nbf_check_reasoning": "Захист від токенів 'з майбутнього', важливо для розподілених систем",
+      
+      "aud_check": true,
+      "aud_value": "${APP_AUDIENCE}",
+      "_aud_check_reasoning": "Токен не можна використати для іншого API, захист від token substitution, RFC 7519",
+      
+      "iss_check": true,
+      "iss_value": "${AUTH_SERVER}",
+      "_iss_check_reasoning": "Приймаємо токени тільки від довіреного auth server, критично для федеративної автентифікації"
+    },
+    
+    "private_key_storage": "hsm",
+    "_private_key_storage_reasoning": "HSM (Hardware Security Module) - ключ ніколи не покидає захищене середовище, відповідає PCI DSS, FIPS 140-2",
+    
+    "public_key_distribution": "jwks",
+    "_public_key_distribution_reasoning": "JWKS (RFC 7517) - стандартний спосіб розповсюдження, підтримує ротацію без downtime",
+    
+    "key_rotation_enabled": true,
+    "key_rotation_days": 90,
+    "_key_rotation_reasoning": "Обмежує час життя скомпрометованого ключа, best practice, рекомендація: 90 днів",
+    
+    "headers": {
+      "kid_enabled": true,
+      "_kid_reasoning": "Key ID - дозволяє використовувати кілька ключів, необхідно для ротації",
+      
+      "typ": "JWT",
+      "_typ_reasoning": "Явно вказує тип токену, допомагає при валідації"
+    }
+  },
+
+  "passwords": {
+    "_comment": "Безпечне зберігання паролів",
+    
+    "hash_function": "argon2id",
+    "_hash_function_reasoning": "Argon2id - переможець Password Hashing Competition 2015, найсучасніший алгоритм, стійкий до GPU/ASIC атак, рекомендовано OWASP 2024, RFC 9106",
+    
+    "time_cost": 2,
+    "_time_cost_reasoning": "Мінімум 2 ітерації (OWASP), збільшує час обчислення, ускладнює brute-force, хешування має займати 100-500 мс",
+    
+    "memory_cost": 19456,
+    "_memory_cost_reasoning": "19 MiB - рекомендація OWASP для серверів, робить GPU/ASIC атаки економічно невигідними",
+    
+    "parallelism": 1,
+    "_parallelism_reasoning": "Достатньо для більшості серверів, можна збільшити відповідно до CPU cores",
+    
+    "hash_length": 32,
+    "_hash_length_reasoning": "256 біт - стандарт криптографічної стійкості, достатньо для унікальності",
+    
+    "salt_length": 16,
+    "_salt_length_reasoning": "128 біт - мінімум NIST, гарантує унікальність, запобігає rainbow tables",
+    
+    "salt_strategy": "random_per_password",
+    "_salt_strategy_reasoning": "КРИТИЧНО - кожен пароль має унікальну випадкову сіль, однакові паролі матимуть різні хеші",
+    
+    "security": {
+      "min_length": 12,
+      "_min_length_reasoning": "Рекомендація NIST SP 800-63B (2024), баланс безпеки та зручності",
+      
+      "max_length": 128,
+      "_max_length_reasoning": "Захист від DoS атак через надто довгі паролі, достатньо для парафраз",
+      
+      "check_pwned": true,
+      "_check_pwned_reasoning": "Have I Been Pwned API - перевірка на викриті паролі, k-anonymity model (безпечно)",
+      
+      "pepper_enabled": true,
+      "pepper_storage": "${PASSWORD_PEPPER}",
+      "_pepper_reasoning": "Додатковий секрет на рівні додатка, захист якщо БД скомпрометована, зберігається окремо від БД"
+    }
+  },
+
+  "encryption": {
+    "_comment": "Шифрування даних",
+    
+    "algorithm": "AES-256-GCM",
+    "_algorithm_reasoning": "AES-256-GCM - стандарт NIST, 256 біт (стійкий до квантових атак), GCM = AEAD (конфіденційність + автентичність + цілісність одночасно), швидкий (AES-NI), RFC 5288, NIST SP 800-38D",
+    
+    "key_length": 256,
+    "_key_length_reasoning": "Максимальна безпека AES, стійкість до квантових атак, рекомендація NIST для TOP SECRET",
+    
+    "iv_strategy": "crypto_random_nonce",
+    "_iv_strategy_reasoning": "КРИТИЧНО для GCM - nonce НІКОЛИ не повторюється, CSPRNG для кожної операції, повторення = повна компрометація",
+    
+    "nonce_length": 96,
+    "_nonce_length_reasoning": "96 біт - оптимальна довжина для GCM (NIST SP 800-38D), ефективність, 2^96 унікальних значень",
+    
+    "nonce_generation": "csprng",
+    "_nonce_generation_reasoning": "Криптографічно стійкий генератор - непередбачуваність, /dev/urandom, CryptGenRandom, crypto.getRandomValues",
+    
+    "tag_length": 128,
+    "_tag_length_reasoning": "128 біт MAC tag - найкраща довжина для GCM, автентичність та цілісність, захист від tampering",
+    
+    "authenticated_data_enabled": true,
+    "_authenticated_data_reasoning": "AAD - автентифікація даних без шифрування (headers, metadata), захист від підміни контексту",
+    
+    "key_storage": "hsm",
+    "_key_storage_reasoning": "HSM - ключі ніколи не виходять в незашифрованому вигляді, стійкість до фізичних атак, FIPS 140-2 Level 3/4, PCI DSS",
+    
+    "envelope_encryption": true,
+    "_envelope_encryption_reasoning": "Дані шифруються DEK, DEK шифрується KEK в HSM - швидше, безпечніше, легша ротація",
+    
+    "database": {
+      "encryption_level": "column",
+      "_encryption_level_reasoning": "Шифрування колонок - гранулярний контроль, шифруємо тільки чутливі дані, менше навантаження",
+      
+      "sensitive_fields": [
+        "ssn",
+        "credit_card",
+        "bank_account",
+        "medical_records",
+        "personal_notes"
+      ],
+      "_sensitive_fields_reasoning": "Завжди шифруємо PII, фінансові, медичні дані згідно GDPR, HIPAA, PCI DSS"
+    },
+    
+    "key_rotation": {
+      "enabled": true,
+      "rotation_days": 90,
+      "strategy": "online",
+      "_key_rotation_reasoning": "Ротація кожні 90 днів - обмежує дані на один ключ, обмежує час скомпрометованого ключа, PCI DSS compliance, online = без downtime"
+    }
+  },
+
+  "tls": {
+    "_comment": "Захист транспортного рівня",
+    
+    "min_version": "1.3",
+    "_min_version_reasoning": "TLS 1.3 (RFC 8446) - найновіший стандарт, швидший handshake, forward secrecy за замовчуванням, TLS 1.0/1.1 заборонені (PCI DSS)",
+    
+    "cipher_suites": [
+      "TLS_AES_256_GCM_SHA384",
+      "TLS_CHACHA20_POLY1305_SHA256",
+      "TLS_AES_128_GCM_SHA256"
+    ],
+    "_cipher_suites_reasoning": "Тільки AEAD ciphers, Perfect Forward Secrecy, рекомендовано Mozilla SSL Configuration Generator",
+    
+    "hsts": {
+      "enabled": true,
+      "max_age": 31536000,
+      "include_subdomains": true,
+      "preload": true,
+      "_hsts_reasoning": "HSTS - змушує HTTPS only, захист від SSL stripping та MITM, 1 рік + preload list"
+    },
+    
+    "certificate_transparency": true,
+    "_certificate_transparency_reasoning": "Публічний журнал сертифікатів, виявлення підроблених, вимога браузерів"
+  },
+
+  "secrets_management": {
+    "_comment": "Управління секретними даними",
+    
+    "storage": "vault",
+    "_storage_reasoning": "Централізоване сховище (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault) - шифрування, аудит, динамічні секрети, автоматична ротація",
+    
+    "never_store_in": [
+      "source_code",
+      "version_control",
+      "environment_files",
+      "configuration_files",
+      "logs"
+    ],
+    "_never_store_in_reasoning": "Ніколи не зберігати секрети в коді, Git, .env (обережно), конфігах у відкритому вигляді, логах",
+    
+    "rotation": {
+      "enabled": true,
+      "schedule": "90d",
+      "auto_rotate": [
+        "jwt_secrets",
+        "encryption_keys",
+        "database_passwords",
+        "api_keys"
+      ],
+      "_rotation_reasoning": "Автоматична ротація кожні 90 днів для всіх критичних секретів"
+    }
+  },
+
+  "audit": {
+    "_comment": "Аудит та моніторинг криптографічних операцій",
+    
+    "crypto_operations_logging": true,
+    "_crypto_operations_logging_reasoning": "Виявлення аномалій, compliance (GDPR, HIPAA, SOC 2), forensics при інцидентах",
+    
+    "log_events": [
+      "key_generation",
+      "key_rotation",
+      "encryption",
+      "decryption",
+      "failed_verifications",
+      "token_generation",
+      "token_validation"
+    ],
+    "_log_events_reasoning": "Логуємо всі криптооперації (БЕЗ даних!), невдалі перевірки, токени",
+    
+    "alerts": [
+      "multiple_failed_auth",
+      "token_replay_detected",
+      "encryption_failures",
+      "key_access_from_unknown"
+    ],
+    "_alerts_reasoning": "Алерти на підозрілу активність - невдалі авторизації, replay attacks, помилки шифрування, підозрілий доступ"
+  },
+
+  "_additional_recommendations": {
+    "security_practices": [
+      "Регулярні security audits та penetration testing",
+      "Відслідковувати CVE та оновлювати криптографічні бібліотеки",
+      "Використовувати vetted бібліотеки (не писати свої)",
+      "Principle of least privilege для доступу до ключів",
+      "Disaster recovery план для втрати ключів",
+      "Документувати всі криптографічні рішення",
+      "Training команди з безпечних практик"
+    ],
+    "useful_resources": [
+      "OWASP Cryptographic Storage Cheat Sheet",
+      "NIST Cryptographic Standards and Guidelines",
+      "Mozilla SSL Configuration Generator",
+      "CWE Top 25 Most Dangerous Software Weaknesses"
+    ]
+  }
+}

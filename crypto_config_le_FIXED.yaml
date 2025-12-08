@@ -1,0 +1,29 @@
+# Виправлена конфігурація - crypto_config_le.yaml
+# Усунуто hardcoded secrets, застарілі алгоритми та fixed salt
+
+jwt:
+  algorithm: HS256                    # Симетричний алгоритм (для простіших систем)
+  shared_secret: "${JWT_SECRET}"      # З змінної оточення, НЕ hardcoded
+  secret_min_length: 256              # Мінімум 256 біт (32 байти)
+  verify_signature: true              # Перевіряємо підпис
+  claims:
+    exp_required: true
+    exp_max_time: 900                 # 15 хвилин для access token
+    aud_check: true
+    iss_check: true
+
+passwords:
+  hash_function: bcrypt               # Надійний алгоритм
+  cost_factor: 12                     # Мінімум 12 (краще 14)
+  salt_strategy: auto_random          # Bcrypt автоматично генерує сіль
+  # Параметр salt видалено - bcrypt сам генерує унікальну сіль
+
+encryption:
+  algorithm: AES-256-GCM              # Сучасний алгоритм замість DES
+  key_length: 256                     # 256 біт
+  iv_strategy: random_nonce           # Випадковий nonce
+  nonce_length: 96                    # 96 біт для GCM
+  key_storage: kms                    # Key Management Service
+  kms_provider: "${KMS_PROVIDER}"     # AWS KMS, Azure Key Vault, etc.
+  kms_key_id: "${KMS_KEY_ID}"         # ID ключа в KMS
+  envelope_encryption: true           # Використання envelope encryption
