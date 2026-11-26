@@ -1,0 +1,28 @@
+# Hardened version of configs/before/02-legacy.yaml
+# Fixes: hardcoded JWT secret, no token expiry, fixed password salt, DES, hardcoded encryption key.
+
+jwt:
+  algorithm: HS256                    # symmetric, acceptable for a single service
+  shared_secret: "${JWT_SECRET}"      # from the environment or a secret manager, not in the file
+  secret_min_length: 256              # at least 256 bits
+  verify_signature: true
+  claims:
+    exp_required: true
+    exp_max_time: 900                 # 15 minutes for access tokens
+    aud_check: true
+    iss_check: true
+
+passwords:
+  hash_function: bcrypt
+  cost_factor: 12                     # OWASP: at least 10
+  salt_strategy: auto_random          # bcrypt generates a unique salt per hash; the fixed salt is removed
+
+encryption:
+  algorithm: AES-256-GCM              # replaces DES (56-bit key, broken)
+  key_length: 256
+  iv_strategy: random_nonce
+  nonce_length: 96
+  key_storage: kms                    # key lives in a key management service
+  kms_provider: "${KMS_PROVIDER}"
+  kms_key_id: "${KMS_KEY_ID}"
+  envelope_encryption: true           # data keys encrypted by a master key in KMS

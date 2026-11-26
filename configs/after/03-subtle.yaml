@@ -1,0 +1,36 @@
+# Hardened version of configs/before/03-subtle.yaml
+# This one looked almost right. Fixes: no token expiry or audience check,
+# Argon2 below the OWASP minimum and not the id variant, AES-GCM with a fixed IV.
+
+jwt:
+  algorithm: RS256
+  key_size: 2048
+  verify_signature: true
+  claims:
+    exp_required: true
+    exp_max_time: 900
+    iat_required: true
+    aud_check: true
+    aud_value: "${APP_AUDIENCE}"
+    iss_check: true
+    iss_value: "${AUTH_SERVER}"
+    nbf_check: true
+  private_key_storage: hsm
+  public_key_distribution: jwks       # services fetch the public key from a JWKS endpoint
+
+passwords:
+  hash_function: argon2id             # was argon2 (unspecified variant)
+  time_cost: 2                        # was 1
+  memory_cost: 19456                  # was 1024 KiB, now the OWASP minimum of 19 MiB
+  parallelism: 1
+  hash_length: 32
+  salt_length: 16
+  salt_strategy: random_per_password
+
+encryption:
+  algorithm: AES-256-GCM
+  key_length: 256
+  iv_strategy: random_nonce           # a repeated nonce breaks GCM completely
+  nonce_length: 96
+  key_storage: hsm
+  tag_length: 128

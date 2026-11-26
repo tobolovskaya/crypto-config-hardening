@@ -1,0 +1,39 @@
+# The hardened configs must pass the checker, the insecure ones must be caught.
+name: Crypto config check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    name: Hardened configs pass, insecure configs are caught
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install (pinned versions)
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet -r requirements.txt
+
+      - name: Unit tests for the rules
+        run: .venv/bin/python -m pytest -q
+
+      - name: Hardened configs must be clean
+        run: .venv/bin/python check_config.py configs/after/*.yaml
+
+      - name: Insecure configs must be caught
+        run: |
+          if .venv/bin/python check_config.py configs/before/*.yaml | tee findings.txt; then
+            echo "::error::No findings in configs/before, the checker is not working"; exit 1
+          fi
+          { echo "## Findings in configs/before"; echo '```'; cat findings.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
