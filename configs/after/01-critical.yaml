@@ -1,0 +1,32 @@
+# Hardened version of configs/before/01-critical.yaml
+# Fixes: unsigned JWTs, no signature check, 1024-bit key, no expiry or audience check,
+# SHA-1 password hashes, AES-CBC with a fixed IV.
+
+jwt:
+  algorithm: RS256                    # asymmetric signature, private key only on the auth server
+  key_size: 2048                      # NIST minimum for RSA
+  verify_signature: true              # never accept a token without checking the signature
+  claims:
+    exp_required: true                # tokens must expire
+    exp_max_time: 900                 # 15 minutes for access tokens
+    aud_check: true                   # token must be meant for this service
+    aud_value: "${APP_AUDIENCE}"
+    iss_check: true                   # token must come from our auth server
+    iss_value: "${AUTH_SERVER}"
+    nbf_check: true
+
+passwords:
+  hash_function: argon2id             # memory-hard, recommended by OWASP
+  time_cost: 2                        # OWASP minimum: m=19456 KiB, t=2, p=1
+  memory_cost: 19456                  # 19 MiB
+  parallelism: 1
+  salt_strategy: random_per_password  # unique salt for every password
+
+encryption:
+  algorithm: AES-256-GCM              # authenticated encryption (confidentiality + integrity)
+  key_length: 256
+  iv_strategy: random_nonce           # new random nonce for every encryption
+  nonce_length: 96                    # 96-bit nonce is the GCM standard
+  key_storage: env_variable           # injected at runtime, never in the repo
+  key_rotation: enabled
+  key_rotation_days: 90
